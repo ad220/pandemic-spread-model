@@ -1,6 +1,5 @@
 ﻿import random as rd
 import matplotlib.pyplot as plt
-import matplotlib.animation as animation
 from math import *
 
 class population(object):
@@ -19,7 +18,9 @@ class population(object):
         self.y = pop[1]
         self.vx = vx
         self.vy = vy
-        self.coroned = self.init[5]
+        self.malade = self.init[5]
+        self.timer = [-1 for i in range(n)]
+        self.proba = 1
 
 
     def __repr__(self):
@@ -38,7 +39,7 @@ class population(object):
             while random in pool: #on vérifie que l'élément choisi n'a pas déjà été contaminé
                 random=rd.randint(0,self.n) #élément aléatoire
             pool+=[random]
-            self.coroned[random]=True #contamination
+            self.malade[random]=True #contamination
 
 
     def propagation(self,m=1,e=1):
@@ -56,9 +57,16 @@ class population(object):
 
         for i in range(self.n-1): #on vérifie si les éléments sont trop proches deux à deux (complexité en n!)
             for j in range(i+1,self.n):
-                if ((X[i]-X[j])**2 +(Y[i]-Y[j])**2)**(1/2)<e:
-                    if self.coroned[i] or self.coroned[j]:
-                        self.coroned[i],self.coroned[j]=True,True
+                if ((X[i]-X[j])**2 +(Y[i]-Y[j])**2)**(1/2)<e and rd.random()<self.proba:
+                    if self.malade[i] and self.timer[j]>0: self.malade[j]=True
+                    if self.malade[j] and self.timer[i]>0: self.malade[i]=True
+        
+        for i in range(self.n):
+            if self.timer[i]==0:
+                self.malade[i]=False
+            if self.malade[i]:
+                self.timer[i]-=1
+
         self.x,self.y=X,Y
     
 
@@ -68,86 +76,60 @@ class population(object):
         self.x=self.init[1]
         self.vx=self.init[2]
         self.vx=self.init[3]
-        self.coroned=[False for i in range(self.n)]
+        self.malade=[False for i in range(self.n)]
 
 
-def animer(P,frames=1000,fr=1/60,m=0.15,e=1): 
+def simulation(P,duree,pas,e,temps_guerison,proba):
+    """fait la simulation de la population P sur une certaine duree"""
+    X,Y,C=[P.x],[P.y],[P.malade]
+    P.timer=[temps_guerison for i in range(P.n)]
+    P.proba=proba
+    for i in range(duree-1):
+        P.propagation(pas,e) #fait chaque calcul de propagation
+        X+=[[x for x in P.x]] #récupère la position de chaque point entre chaque déplacement
+        Y+=[[y for y in P.y]]
+        C+=[[b for b in P.malade]]
+    return X,Y,C
+
+
+def animation(P,frames=1000,fr=1/60,m=0.15,e=1,tg=-1,proba=1): 
     """animation (calcul entre deux affichages) qui fonctionne pour une petite population"""
-    anim,=plt.plot(P.x,P.y,'.')
-    plt.xlim(0,P.r)
-    plt.ylim(0,P.r)
-    for i in range(frames):
-        P.propagation(m,e)
-        anim.set_xdata(P.x)
-        anim.set_ydata(P.x)
-        plt.pause(fr)
-    plt.show()
-
-def animer_pre(P,frames=1000,fr=1/60,m=0.15,e=1):
-    """animation d'une population (fait tous les calculs avant d'animer pour avoir un animation plus fluide sur une grande population)"""
-    anim,=plt.plot(P.x,P.y,'.') #crée la figure
-    plt.xlim(0,P.r) #place les limite du graph
-    plt.ylim(0,P.r)
-    X,Y,C=simulation(P,frames,m,e)
-    for i in range(frames):
-        anim.set_xdata(X[i]) #ajoute les données instant après instant dans l'animation
-        anim.set_ydata(Y[i])
-        plt.pause(fr)  #définit les la fréquence d'affichage en déterminant la période de pause entre deux graphiques.
-    plt.show()
-
-def animation_coroned(P,duree=1000,fr=1/60,pas=0.15,e=1):
-    """évolution des personnes contaminées"""
-    anim,=plt.plot([],[])
-    plt.xlim(0,duree)
-    plt.ylim(0,P.n)
-    X,Y,C=simulation(P,duree,pas,e)
-    for i in range(duree):
-        anim.set_xdata([j for j in range(i)])
-        anim.set_ydata([sum(C[j]) for j in range(i)])
-        plt.pause(fr)
-    plt.show()
-
-
-def animergold(P,frames=1000,fr=1/60,m=0.15,e=1): 
-    """animation (calcul entre deux affichages) qui fonctionne pour une petite population"""
-    fig,_=plt.subplots()
-
     plt.subplot(1,2,1)
     anim_move,=plt.plot(P.x,P.y,'.')
-    anim_move2,=plt.plot([],[],'.')
     plt.xlim(0,P.r)
     plt.ylim(0,P.r)
-    X,Y,C=simulation(P,frames,m,e)
+    X,Y,C=simulation(P,frames,m,e,tg,proba)
 
     plt.subplot(1,2,2)
     anim_graph,=plt.plot([],[]) #crée la figure
     plt.xlim(0,frames)
     plt.ylim(0,P.n)
 
-    def animer_Func(i):
-        anim_move.set_data(X[i],Y[i])
-        anim_move2.set_data(X[i-2],Y[i-2])
-        anim_graph.set_data([j for j in range(i)],[sum(C[j]) for j in range(i)])
-        return anim_move,anim_move2,anim_graph
-    
-    ani = animation.FuncAnimation(fig=fig, func=animer_Func, frames=range(frames), interval=10, blit=True)
+    for i in range(frames):
+        anim_move.set_xdata(X[i])
+        anim_move.set_ydata(Y[i])
+        anim_graph.set_xdata([j for j in range(i)])
+        anim_graph.set_ydata([sum(C[j]) for j in range(i)])
+        plt.pause(fr)
     plt.show()
-    # ani.save(filename="courbe.mp4", dpi =80, fps=20)
+
+def graph(P,duree=1000,pas=0.15,e=1,temps_guerison=-1,proba=1):
+    X,Y,C=simulation(P,duree,pas,e,temps_guerison,proba)
+    coroned=[sum(C[t]) for t in range(duree)]
+    plt.plot([t for t in range(duree)],coroned)
+    plt.show()
 
 
-def simulation(P,duree,pas,e):
-    """fait la simulation de la population P sur une certaine duree"""
-    X,Y,C=[],[],[]
-    for i in range(duree):
-        P.propagation(pas,e) #fait chaque calcul de propagation
-        X+=[[x for x in P.x]] #récupère la position de chaque point entre chaque déplacement
-        Y+=[[y for y in P.y]]
-        C+=[[b for b in P.coroned]]
-    return X,Y,C
+
 
 #faire plusieurs anim de différentes couleurs indépendantes entre elles.
 
-P=population(100,50)
+P=population(500,100)
 P.contaminer()
-animergold(P,1000,0.001,0.1)
+#animation(P,1500,0.001,0.15,1,200)
+graph(P,10000,0.2,1,200,1/3)
 breakpoint()
+
+
+#Proba contamination
+#Contaminé --> Guéri (immune)
