@@ -1,5 +1,6 @@
 ﻿import random as rd
 import matplotlib.pyplot as plt
+import matplotlib.animation as animation
 from math import *
 
 class population(object):
@@ -109,8 +110,11 @@ def animation_coroned(P,duree=1000,fr=1/60,pas=0.15,e=1):
 
 def animergold(P,frames=1000,fr=1/60,m=0.15,e=1): 
     """animation (calcul entre deux affichages) qui fonctionne pour une petite population"""
+    fig,_=plt.subplots()
+
     plt.subplot(1,2,1)
     anim_move,=plt.plot(P.x,P.y,'.')
+    anim_move2,=plt.plot([],[],'.')
     plt.xlim(0,P.r)
     plt.ylim(0,P.r)
     X,Y,C=simulation(P,frames,m,e)
@@ -120,13 +124,15 @@ def animergold(P,frames=1000,fr=1/60,m=0.15,e=1):
     plt.xlim(0,frames)
     plt.ylim(0,P.n)
 
-    for i in range(frames):
-        anim_move.set_xdata(X[i])
-        anim_move.set_ydata(Y[i])
-        anim_graph.set_xdata([j for j in range(i)])
-        anim_graph.set_ydata([sum(C[j]) for j in range(i)])
-        plt.pause(fr)
+    def animer_Func(i):
+        anim_move.set_data(X[i],Y[i])
+        anim_move2.set_data(X[i-2],Y[i-2])
+        anim_graph.set_data([j for j in range(i)],[sum(C[j]) for j in range(i)])
+        return anim_move,anim_move2,anim_graph
+    
+    ani = animation.FuncAnimation(fig=fig, func=animer_Func, frames=range(frames), interval=10, blit=True)
     plt.show()
+    # ani.save(filename="courbe.mp4", dpi =80, fps=20)
 
 
 def simulation(P,duree,pas,e):
