@@ -21,28 +21,40 @@ class population(object):
         self.malade = self.init[5]
         self.timer = [-1 for i in range(n)]
         self.proba = 1
-
+        self.infectés = []
+        self.sains = [i for i in range(n)]
+        
 
     def __repr__(self):
         """représente la position de tous les éléments de la population sur un graph"""
-        plt.plot(self.x,self.y,'.')
+        plt.plot([self.x[i] for i in self.sains],[self.y[i] for i in self.sains],'.',color="green")
+        plt.plot([self.x[i] for i in self.infectés],[self.y[i] for i in self.infectés],'.',color="red")
         plt.xlim(0,self.r)
         plt.ylim(0,self.r)
         plt.show()
 
 
-    def contaminer(self,n=1):
+    def contaminer_old(self,n=1):
         """Contamine n éléments dans la population"""
         pool=[-1] #Initialise la liste des éléments déjà contaminés pour pas contaminer deux fois la même personne
         for i in range(n):
             random=-1 #un élément déjà dans pool pour entrer dans la boucle while
             while random in pool: #on vérifie que l'élément choisi n'a pas déjà été contaminé
-                random=rd.randint(0,self.n) #élément aléatoire
+                random=rd.randint(0,self.n-1) #élément aléatoire
             pool+=[random]
             self.malade[random]=True #contamination
+            self.infectés+=[random]
+            self.sains.remove(random)
+
+    def contaminer(self,n=1):
+        """Contamine n éléments dans la population"""
+        for i in range(n):
+            self.malade[i]=True #contamination
+            self.infectés+=[i]
+            self.sains.remove(i)
 
 
-    def propagation(self,m=1,e=1):
+    def propagation(self,m=0.1,e=1):
         """Fait se déplacer chaque élément d'un déplacement m et vérifie si deux éléments sont susceptible de se contaminer leur distance relative < e"""
         b=self.r
         X,Y,vX,vY=self.x,self.y,self.vx,self.vy
@@ -55,16 +67,20 @@ class population(object):
             if Y[i] > b :       Y[i] , vY[i]  =  b , -vY[i]
             elif Y[i] < 0 :     Y[i] , vY[i]  =  0 , -vY[i]
 
-        for i in range(self.n-1): #on vérifie si les éléments sont trop proches deux à deux (complexité en n!)
-            for j in range(i+1,self.n):
-                if ((X[i]-X[j])**2 +(Y[i]-Y[j])**2)**(1/2)<e and rd.random()<self.proba:
-                    if self.malade[i] and self.timer[j]>0: self.malade[j]=True
-                    if self.malade[j] and self.timer[i]>0: self.malade[i]=True
-        
+        for i in self.infectés: #on vérifie si les éléments sont trop proches deux à deux (complexité en n!)
+            for j in self.sains:
+                if rd.random()<self.proba and ((X[i]-X[j])**2 +(Y[i]-Y[j])**2)**(1/2)<e and self.timer[j]>0:
+                        self.malade[j]=True
+                        self.infectés+=[j]
+                        self.sains.remove(j)
+
         for i in range(self.n):
             if self.timer[i]==0:
                 self.malade[i]=False
-            if self.malade[i]:
+                self.sains+=[i]
+                self.infectés.remove(i)
+                self.timer[i]=-1
+            elif self.malade[i]:
                 self.timer[i]-=1
 
         self.x,self.y=X,Y
@@ -78,27 +94,32 @@ class population(object):
         self.vx=self.init[3]
         self.malade=[False for i in range(self.n)]
 
+def copy(objet): return [e for e in objet]
 
-def simulation(P,duree,pas,e,temps_guerison,proba):
+def simulation(P,duree,pas,e,temps_guerison,proba,echo=False):
     """fait la simulation de la population P sur une certaine duree"""
-    X,Y,C=[P.x],[P.y],[P.malade]
+    X,Y,C,S,I=[P.x],[P.y],[P.malade],[P.sains],[P.infectés]
     P.timer=[temps_guerison for i in range(P.n)]
     P.proba=proba
     for i in range(duree-1):
         P.propagation(pas,e) #fait chaque calcul de propagation
-        X+=[[x for x in P.x]] #récupère la position de chaque point entre chaque déplacement
-        Y+=[[y for y in P.y]]
-        C+=[[b for b in P.malade]]
-    return X,Y,C
+        X+=[copy(P.x)] #récupère la position de chaque point entre chaque déplacement
+        Y+=[copy(P.y)]
+        C+=[copy(P.malade)]
+        S+=[copy(P.sains)]
+        I+=[copy(P.infectés)]
+        print(str(100*(i+1)/duree)+"%")
+    return X,Y,C,S,I
 
 
 def animation(P,frames=1000,fr=1/60,m=0.15,e=1,tg=-1,proba=1): 
-    """animation (calcul entre deux affichages) qui fonctionne pour une petite population"""
     plt.subplot(1,2,1)
-    anim_move,=plt.plot(P.x,P.y,'.')
+    anim_sains,=plt.plot([],[],'.',color="green")
+    anim_infectés,=plt.plot([],[],'.',color="red")
+
     plt.xlim(0,P.r)
     plt.ylim(0,P.r)
-    X,Y,C=simulation(P,frames,m,e,tg,proba)
+    X,Y,C,S,I=simulation(P,frames,m,e,tg,proba)
 
     plt.subplot(1,2,2)
     anim_graph,=plt.plot([],[]) #crée la figure
@@ -106,30 +127,25 @@ def animation(P,frames=1000,fr=1/60,m=0.15,e=1,tg=-1,proba=1):
     plt.ylim(0,P.n)
 
     for i in range(frames):
-        anim_move.set_xdata(X[i])
-        anim_move.set_ydata(Y[i])
+        anim_sains.set_xdata([X[i][j] for j in S[i]])
+        anim_sains.set_ydata([Y[i][j] for j in S[i]])
+        anim_infectés.set_xdata([X[i][j] for j in I[i]])
+        anim_infectés.set_ydata([Y[i][j] for j in I[i]])
         anim_graph.set_xdata([j for j in range(i)])
         anim_graph.set_ydata([sum(C[j]) for j in range(i)])
         plt.pause(fr)
     plt.show()
 
 def graph(P,duree=1000,pas=0.15,e=1,temps_guerison=-1,proba=1):
-    X,Y,C=simulation(P,duree,pas,e,temps_guerison,proba)
+    _,_,C,_,_=simulation(P,duree,pas,e,temps_guerison,proba)
     coroned=[sum(C[t]) for t in range(duree)]
     plt.plot([t for t in range(duree)],coroned)
     plt.show()
 
 
-
-
 #faire plusieurs anim de différentes couleurs indépendantes entre elles.
 
-P=population(500,100)
-P.contaminer()
-#animation(P,1500,0.001,0.15,1,200)
-graph(P,10000,0.2,1,200,1/3)
-breakpoint()
-
-
-#Proba contamination
-#Contaminé --> Guéri (immune)
+P=population(5000,800)
+P.contaminer(5)
+animation(P,10000,1/60,0.2,2,200,1/3)
+#graph(P,1000,0.2,1,200,1/3)
