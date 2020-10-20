@@ -3,8 +3,9 @@ import csv
 import matplotlib.pyplot as plt
 from math import *
 
+population(n,r)
 class population(object):
-    def __init__(self,n,r):
+    def __init__(self,n=0,r=0):
         """Crée une population de n individus, de direction donnée, dans un espace carré de coté r"""
         pop=[[rd.randint(0,r) for i in range(n)],[rd.randint(0,r) for i in range(n)]] #Position de chaque point
         vx,vy=[],[]
@@ -12,7 +13,6 @@ class population(object):
             direction=rd.random()*2*pi #Direction aléatoire
             vx+=[cos(direction)] #Direction selon x
             vy+=[sin(direction)] #Direction selon y
-        self.init = pop+[vx,vy,[r],[False for i in range(n)]]
         self.n = n
         self.r = r
         self.x = pop[0]
@@ -20,8 +20,8 @@ class population(object):
         self.vx = vx
         self.vy = vy
         self.timer = [-1 for i in range(n)]
-        self.infectés = []
         self.sains = [i for i in range(n)]
+        self.infectés = []
         self.rétablis = []
         self.morts = []
         
@@ -73,14 +73,7 @@ class population(object):
             self.timer[i]-=1
 
         self.x,self.y=X,Y
-    
 
-    def reset(self):
-        """réinitialise la population à partir de la liste init"""
-        self.x=self.init[0]
-        self.x=self.init[1]
-        self.vx=self.init[2]
-        self.vx=self.init[3]
 
 def copy(objet): return [e for e in objet]
 
@@ -89,8 +82,8 @@ def simulation(P,duree,pas,rayon_propagation,temps_guerison,proba_infection,prob
     X,Y,S,I,R,M=[copy(P.x)],[copy(P.y)],[copy(P.sains)],[copy(P.infectés)],[copy(P.rétablis)],[copy(P.morts)]
     P.timer=[temps_guerison for i in range(P.n)]
     for t in range(duree-1):
-        P.propagation(pas,rayon_propagation,proba_infection,proba_mort) #fait chaque calcul de propagation
-        X+=[copy(P.x)] #récupère la position de chaque point entre chaque déplacement
+        P.propagation(pas,rayon_propagation,proba_infection,proba_mort)
+        X+=[copy(P.x)]
         Y+=[copy(P.y)]
         S+=[copy(P.sains)]
         I+=[copy(P.infectés)]
@@ -99,78 +92,76 @@ def simulation(P,duree,pas,rayon_propagation,temps_guerison,proba_infection,prob
         print(str(100*(t+1)/duree)+"%")
     return X,Y,S,I,R,M
 
-def simulation_into_csv_bourrin(P,duree,pas,rayon_propagation,temps_guerison,proba_infection,proba_mort,csvname,method):
-    """fait la simulation de la population P sur une certaine duree"""
-    sim_file=open(csvname,method)
-    simW=csv.writer(sim_file, delimiter=';')
-
-    P.timer=[temps_guerison for i in range(P.n)]
-    for t in range(duree-1):
-        simW.writerow((P.x,P.y,P.sains,P.infectés,P.rétablis,P.morts))
-        P.propagation(pas,rayon_propagation,proba_infection,proba_mort)
-        print(str(100*(t+1)/duree)+"%")
-
-    sim_file.close()
-
 def simulation_into_csv(P,duree,pas,rayon_propagation,temps_guerison,proba_infection,proba_mort):
     """fait la simulation de la population P sur une certaine duree"""
-    X=open('x.csv','w')
-    Y=open('y.csv','w')
-    S=open('s.csv','w')
-    I=open('i.csv','w')
-    R=open('r.csv','w')
-    M=open('m.csv','w')
-    xWriter=csv.writer(X)
-    yWriter=csv.writer(Y)
-    sWriter=csv.writer(S)
-    iWriter=csv.writer(I)
-    rWriter=csv.writer(R)
-    mWriter=csv.writer(M)
+    Xfile=open('x.csv','w')
+    Yfile=open('y.csv','w')
+    Sfile=open('s.csv','w')
+    Ifile=open('i.csv','w')
+    Rfile=open('r.csv','w')
+    Mfile=open('m.csv','w')
+    Xwriter=csv.writer(Xfile)
+    Ywriter=csv.writer(Yfile)
+    Swriter=csv.writer(Sfile)
+    Iwriter=csv.writer(Ifile)
+    Rwriter=csv.writer(Rfile)
+    Mwriter=csv.writer(Mfile)
 
     P.timer=[temps_guerison for i in range(P.n)]
-    for t in range(duree-1):
-        xWriter.writerow(P.x)
-        yWriter.writerow(P.y)
-        sWriter.writerow(P.sains)
-        iWriter.writerow(P.infectés)
-        rWriter.writerow(P.rétablis)
-        mWriter.writerow(P.morts)
+    for t in range(duree):
+        Xwriter.writerow(P.x)
+        Ywriter.writerow(P.y)
+        Swriter.writerow(P.sains)
+        Iwriter.writerow(P.infectés)
+        Rwriter.writerow(P.rétablis)
+        Mwriter.writerow(P.morts)
         P.propagation(pas,rayon_propagation,proba_infection,proba_mort)
         print(str(100*(t+1)/duree)+"%")
 
-    X.close()
-    Y.close()
-    S.close()
-    I.close()
-    R.close()
-    M.close()
+    Xfile.close()
+    Yfile.close()
+    Sfile.close()
+    Ifile.close()
+    Rfile.close()
+    Mfile.close()
 
 
-def animation(P,frames,frequence,pas,rayon_propagation,temps_guerison,proba_infection,proba_mort): #changer proba_mort : recalculer en fonction de temps de duree étude
-    plt.title("Évolution de l'épidémie dans le temps")
-
+def animation(P=population(0,0),frames=0,taille=0,frequence=1/60,pas=0.1,rayon_propagation=1,temps_guerison=-1,proba_infection=1,proba_mort=0,methode=simulation,Xfile='x.csv',Yfile='y.csv',Sfile='s.csv',Ifile='i.csv',Rfile='r.csv',Mfile='m.csv'):
+    if methode==simulation: 
+        X,Y,S,I,R,M=methode(P,frames,pas,rayon_propagation,temps_guerison,proba_infection,proba_mort)
+        if taille==0: taille=P.r
+    else: 
+        X,Y,S,I,R,M=methode(Xfile,Yfile,Sfile,Ifile,Rfile,Mfile)
+        if frames==0: frames=len(X)
+        if taille==0: taille=max([max(x) for x in X])
+        
+    plt.suptitle("Évolution de l'épidémie dans le temps",fontsize=20)
+    plt.subplots_adjust(left=0.05,right=0.95,bottom=0.08)
+    
+    
     plt.subplot(1,2,1)
     anim_sains,=plt.plot([],[],'.',color="green",label="Sains")
     anim_infectés,=plt.plot([],[],'.',color="red",label="Infectés")
     anim_rétablis,=plt.plot([],[],'.',color="orange",label="Rétablis")
     anim_morts,=plt.plot([],[],'.',color="grey",label="Morts")
 
-    plt.xlim(0,P.r)
-    plt.ylim(0,P.r)
+    plt.title('Animation')
+    plt.xlim(0,taille)
+    plt.ylim(0,taille)
+    plt.tick_params(axis='both',which='both',left=False,right=False,bottom=False,top=False,labelbottom=False,labelleft=False)
 
     plt.subplot(1,2,2)
     graph_sains,=plt.plot([],[],color="green",label="Sains") #crée la figure
     graph_infectés,=plt.plot([],[],color="red",label="Infectés")
     graph_rétablis,=plt.plot([],[],color="orange",label="Rétablis")
     graph_morts,=plt.plot([],[],color="grey",label="Morts")
+    
+    plt.title('Graphique')
     plt.xlabel('Temps (ua)')
     plt.ylabel('Nombre de personnes')
     plt.legend()
-
     plt.xlim(0,frames)
-    plt.ylim(0,P.n)
-
-    X,Y,S,I,R,M=simulation(P,frames,pas,rayon_propagation,temps_guerison,proba_infection,proba_mort)
+    plt.ylim(0,len(X[0]))
 
     for f in range(frames):
         anim_sains.set_xdata([X[f][i] for i in S[f]])
@@ -193,14 +184,15 @@ def animation(P,frames,frequence,pas,rayon_propagation,temps_guerison,proba_infe
         graph_morts.set_ydata([len(M[t]) for t in temps])
 
         plt.pause(frequence)
+        #plt.gcf().set_size_inches(21.5,10.8)
         #plt.savefig('sim frame'+str(f)+'.png')
     plt.show()
 
-def graph(P,duree,pas,rayon_propagation,temps_guerison,proba_infection,proba_mort):
-    _,_,S,I,R,M=simulation(P,duree,pas,rayon_propagation,temps_guerison,proba_infection,proba_mort)
+def graph(P,duree,pas,rayon_propagation,temps_guerison,proba_infection,proba_mort,methode=simulation):
+    _,_,S,I,R,M=methode(P,duree,pas,rayon_propagation,temps_guerison,proba_infection,proba_mort)
     
     temps=[t for t in range(duree)]
-    plt.plot(temps,[len(S[t]) for t in temps],color="green",label="Sains") #crée la figure
+    plt.plot(temps,[len(S[t]) for t in temps],color="green",label="Sains")
     plt.plot(temps,[len(I[t]) for t in temps],color="red",label="Infectés")
     plt.plot(temps,[len(R[t]) for t in temps],color="orange",label="Rétablis")
     plt.plot(temps,[len(M[t]) for t in temps],color="grey",label="Morts")
@@ -214,75 +206,44 @@ def graph(P,duree,pas,rayon_propagation,temps_guerison,proba_infection,proba_mor
 
     plt.show()
 
-def graph_from_csv_bourrin(csvfile):
-    simcsv=open(csvfile)
-    simreader=csv.reader(simcsv, delimiter=';')
-    S,I,R,M=[],[],[],[]
-    for row in simreader:
-        if row!=[]:
-            _,_,s,i,r,m=row
-            S+=[int(len(s)/3)]
-            I+=[int(len(i)/3)]
-            R+=[int(len(r)/3)]
-            M+=[int(len(m)/3)]
-    simcsv.close()
-
-    duree=len(S)
-    temps=[t for t in range(duree)]
-    plt.plot(temps,[S[t] for t in temps],color="green",label="Sains") #crée la figure
-    plt.plot(temps,[I[t] for t in temps],color="red",label="Infectés")
-    plt.plot(temps,[R[t] for t in temps],color="orange",label="Rétablis")
-    plt.plot(temps,[M[t] for t in temps],color="grey",label="Morts")
-
-    plt.title("Évolution de l'épidémie dans le temps")
-    plt.xlabel('Temps (ua)')
-    plt.ylabel('Nombre de personnes')
-    plt.legend()
-
-    plt.savefig('test.png')
-    
-def graph_from_csv(Xfile,Yfile,Sfile,Ifile,Rfile,Mfile):
+def sim_from_csv(Xfile,Yfile,Sfile,Ifile,Rfile,Mfile):
+    Xfile=open(Xfile)
+    Yfile=open(Yfile)
     Sfile=open(Sfile)
     Ifile=open(Ifile)
     Rfile=open(Rfile)
     Mfile=open(Mfile)
 
+    Xreader=csv.reader(Xfile)
+    Yreader=csv.reader(Yfile)
     Sreader=csv.reader(Sfile)
     Ireader=csv.reader(Ifile)
     Rreader=csv.reader(Rfile)
     Mreader=csv.reader(Mfile)
 
-    S,I,R,M=[],[],[],[]
-    for i in range(4):
-        reader=[Sreader,Ireader,Rreader,Mreader][i]
-        L=[S,I,R,M][i]
+    X,Y,S,I,R,M=[],[],[],[],[],[]
+    for i in range(6):
+        reader=[Xreader,Yreader,Sreader,Ireader,Rreader,Mreader][i]
+        L=[X,Y,S,I,R,M][i]
+        n_type=[float,float,int,int,int,int][i]
         for row in reader:
-            L+=[len(row)]
+            L+=[[n_type(n) for n in row]]
     
+    Xfile.close()
+    Yfile.close()
     Sfile.close()
     Ifile.close()
     Rfile.close()
     Mfile.close()
 
-    duree=len(S)
-    temps=[t for t in range(duree)]
-    plt.plot(temps,[S[t] for t in temps],color="green",label="Sains") #crée la figure
-    plt.plot(temps,[I[t] for t in temps],color="red",label="Infectés")
-    plt.plot(temps,[R[t] for t in temps],color="orange",label="Rétablis")
-    plt.plot(temps,[M[t] for t in temps],color="grey",label="Morts")
+    return X,Y,S,I,R,M
+    
 
-    plt.title("Évolution de l'épidémie dans le temps")
-    plt.xlabel('Temps (ua)')
-    plt.ylabel('Nombre de personnes')
-    plt.legend()
-
-    plt.savefig('simulation.png')
-
-#P=population(100,15)
-#P.contaminer(2)
-#animation(P,200,1/60,0.2,1,50,1/2,0.001)
-#graph(P,600,0.15,1,150,1/3,0.001)
+P=population(100,20)
+P.contaminer(1)
+#animation(methode=sim_from_csv)
+animation(P,400,0,1/60,0.2,1.2,50,1/5,0.001)
 #simulation_into_csv(P,200,0.2,1,50,1/2,0.001)
 #input()
-graph_from_csv('x.csv','y.csv','s.csv','i.csv','r.csv','m.csv')
+#graph('s.csv','i.csv','r.csv','m.csv')
 breakpoint()
