@@ -3,11 +3,10 @@ import csv
 import matplotlib.pyplot as plt
 from math import *
 
-population(n,r)
 class population(object):
     def __init__(self,n=0,r=0):
         """Crée une population de n individus, de direction donnée, dans un espace carré de coté r"""
-        pop=[[rd.randint(0,r) for i in range(n)],[rd.randint(0,r) for i in range(n)]] #Position de chaque point
+        pop=[[rd.random()*r for i in range(n)],[rd.random()*r for i in range(n)]] #Position de chaque point
         vx,vy=[],[]
         for i in range(n):
             direction=rd.random()*2*pi #Direction aléatoire
@@ -24,22 +23,28 @@ class population(object):
         self.infectés = []
         self.rétablis = []
         self.morts = []
-        
+        self.immunisés = []
+        self.isolés =[]
 
     def __repr__(self):
-        """représente la position de tous les éléments de la population sur un graph"""
-        plt.plot([self.x[i] for i in self.sains],[self.y[i] for i in self.sains],'.',color="green")
-        plt.plot([self.x[i] for i in self.infectés],[self.y[i] for i in self.infectés],'.',color="red")
-        plt.plot([self.x[i] for i in self.rétablis],[self.y[i] for i in self.rétablis],'.',color="orange")
-        plt.plot([self.x[i] for i in self.morts],[self.y[i] for i in self.morts],'.',color="grey")
-        plt.xlim(0,self.r)
-        plt.ylim(0,self.r)
-        plt.show()
+        return "Population de "+str(P.n)+" individus, dans un espace carré de côté "+str(P.r)+" (ua), dont "+str(len(self.sains))+" personnes saines, "+str(len(self.infectés))+" infectées, "+str(len(self.rétablis))+" rétablies, et "+str(len(self.morts))+" mortes."
 
     def contaminer(self,n=1):
         """Contamine n éléments dans la population"""
-        for i in range(n):
+        i=0
+        for _ in range(n):
+            while not i in self.sains:
+                i+=1
             self.infectés+=[i]
+            self.sains.remove(i)
+    
+    def immuniser(self,n=0):
+        """Immunise n éléments dans la population"""
+        i=0
+        for _ in range(n):
+            while not i in self.sains:
+                i+=1
+            self.immunisés+=[i]
             self.sains.remove(i)
 
     def propagation(self,pas,rayon_propagation,proba_infection,proba_mort):
@@ -47,7 +52,7 @@ class population(object):
         b=self.r
         X,Y,vX,vY=self.x,self.y,self.vx,self.vy
         for i in range(self.n):
-            if i in self.sains+self.infectés+self.rétablis:
+            if i in self.sains+self.infectés+self.rétablis+self.immunisés:
                 X[i]+=pas*vX[i]
                 Y[i]+=pas*vY[i]
 
@@ -79,7 +84,7 @@ def copy(objet): return [e for e in objet]
 
 def simulation(P,duree,pas,rayon_propagation,temps_guerison,proba_infection,proba_mort):
     """fait la simulation de la population P sur une certaine duree"""
-    X,Y,S,I,R,M=[copy(P.x)],[copy(P.y)],[copy(P.sains)],[copy(P.infectés)],[copy(P.rétablis)],[copy(P.morts)]
+    X,Y,S,I,R,M,N=[copy(P.x)],[copy(P.y)],[copy(P.sains)],[copy(P.infectés)],[copy(P.rétablis)],[copy(P.morts)],[copy(P.immunisés)]
     P.timer=[temps_guerison for i in range(P.n)]
     for t in range(duree-1):
         P.propagation(pas,rayon_propagation,proba_infection,proba_mort)
@@ -89,23 +94,26 @@ def simulation(P,duree,pas,rayon_propagation,temps_guerison,proba_infection,prob
         I+=[copy(P.infectés)]
         R+=[copy(P.rétablis)]
         M+=[copy(P.morts)]
+        N+=[copy(P.immunisés)]
         print(str(100*(t+1)/duree)+"%")
-    return X,Y,S,I,R,M
+    return X,Y,S,I,R,M,N
 
 def simulation_into_csv(P,duree,pas,rayon_propagation,temps_guerison,proba_infection,proba_mort):
-    """fait la simulation de la population P sur une certaine duree"""
+    """Fait la simulation de la population P sur une certaine duree"""
     Xfile=open('x.csv','w')
     Yfile=open('y.csv','w')
     Sfile=open('s.csv','w')
     Ifile=open('i.csv','w')
     Rfile=open('r.csv','w')
     Mfile=open('m.csv','w')
+    Nfile=open('n.csv','n')
     Xwriter=csv.writer(Xfile)
     Ywriter=csv.writer(Yfile)
     Swriter=csv.writer(Sfile)
     Iwriter=csv.writer(Ifile)
     Rwriter=csv.writer(Rfile)
     Mwriter=csv.writer(Mfile)
+    Nwriter=csv.writer(Nfile)
 
     P.timer=[temps_guerison for i in range(P.n)]
     for t in range(duree):
@@ -115,6 +123,7 @@ def simulation_into_csv(P,duree,pas,rayon_propagation,temps_guerison,proba_infec
         Iwriter.writerow(P.infectés)
         Rwriter.writerow(P.rétablis)
         Mwriter.writerow(P.morts)
+        Nwriter.writerow(P.immunisés)
         P.propagation(pas,rayon_propagation,proba_infection,proba_mort)
         print(str(100*(t+1)/duree)+"%")
 
@@ -124,14 +133,15 @@ def simulation_into_csv(P,duree,pas,rayon_propagation,temps_guerison,proba_infec
     Ifile.close()
     Rfile.close()
     Mfile.close()
+    Nfile.close()
 
 
-def animation(P=population(0,0),frames=0,taille=0,frequence=1/60,pas=0.1,rayon_propagation=1,temps_guerison=-1,proba_infection=1,proba_mort=0,methode=simulation,Xfile='x.csv',Yfile='y.csv',Sfile='s.csv',Ifile='i.csv',Rfile='r.csv',Mfile='m.csv'):
+def animation(P=population(0,0),frames=0,taille=0,frequence=1/60,pas=0.1,rayon_propagation=1,temps_guerison=-1,proba_infection=1,proba_mort=0,methode=simulation,Xfile='x.csv',Yfile='y.csv',Sfile='s.csv',Ifile='i.csv',Rfile='r.csv',Mfile='m.csv',Nfile='n.csv'):
     if methode==simulation: 
-        X,Y,S,I,R,M=methode(P,frames,pas,rayon_propagation,temps_guerison,proba_infection,proba_mort)
+        X,Y,S,I,R,M,N=methode(P,frames,pas,rayon_propagation,temps_guerison,proba_infection,proba_mort)
         if taille==0: taille=P.r
     else: 
-        X,Y,S,I,R,M=methode(Xfile,Yfile,Sfile,Ifile,Rfile,Mfile)
+        X,Y,S,I,R,M,N=methode(Xfile,Yfile,Sfile,Ifile,Rfile,Mfile,Nfile)
         if frames==0: frames=len(X)
         if taille==0: taille=max([max(x) for x in X])
         
@@ -144,6 +154,7 @@ def animation(P=population(0,0),frames=0,taille=0,frequence=1/60,pas=0.1,rayon_p
     anim_infectés,=plt.plot([],[],'.',color="red",label="Infectés")
     anim_rétablis,=plt.plot([],[],'.',color="orange",label="Rétablis")
     anim_morts,=plt.plot([],[],'.',color="grey",label="Morts")
+    anim_immunisés,=plt.plot([],[],'.',color="blue",label="Immunisés")
 
     plt.title('Animation')
     plt.xlim(0,taille)
@@ -172,6 +183,8 @@ def animation(P=population(0,0),frames=0,taille=0,frequence=1/60,pas=0.1,rayon_p
         anim_rétablis.set_ydata([Y[f][i] for i in R[f]])
         anim_morts.set_xdata([X[f][i] for i in M[f]])
         anim_morts.set_ydata([Y[f][i] for i in M[f]])
+        anim_immunisés.set_xdata([X[f][i] for i in N[f]])
+        anim_immunisés.set_ydata([Y[f][i] for i in N[f]])
 
         temps=[t for t in range(f)]
         graph_sains.set_xdata(temps)
@@ -188,8 +201,12 @@ def animation(P=population(0,0),frames=0,taille=0,frequence=1/60,pas=0.1,rayon_p
         #plt.savefig('sim frame'+str(f)+'.png')
     plt.show()
 
-def graph(P,duree,pas,rayon_propagation,temps_guerison,proba_infection,proba_mort,methode=simulation):
-    _,_,S,I,R,M=methode(P,duree,pas,rayon_propagation,temps_guerison,proba_infection,proba_mort)
+def graph(P=population(0,0),duree=0,pas=0.1,rayon_propagation=1,temps_guerison=-1,proba_infection=1,proba_mort=0,methode=simulation,Xfile='x.csv',Yfile='y.csv',Sfile='s.csv',Ifile='i.csv',Rfile='r.csv',Mfile='m.csv',Nfile='n.csv'):
+    if methode==simulation: 
+        _,_,S,I,R,M,_=methode(P,duree,pas,rayon_propagation,temps_guerison,proba_infection,proba_mort)
+    else: 
+        _,_,S,I,R,M,_=methode(Xfile,Yfile,Sfile,Ifile,Rfile,Mfile,Nfile)
+        if duree==0: frames=len(S)
     
     temps=[t for t in range(duree)]
     plt.plot(temps,[len(S[t]) for t in temps],color="green",label="Sains")
@@ -206,13 +223,14 @@ def graph(P,duree,pas,rayon_propagation,temps_guerison,proba_infection,proba_mor
 
     plt.show()
 
-def sim_from_csv(Xfile,Yfile,Sfile,Ifile,Rfile,Mfile):
+def sim_from_csv(Xfile,Yfile,Sfile,Ifile,Rfile,Mfile,Nfile):
     Xfile=open(Xfile)
     Yfile=open(Yfile)
     Sfile=open(Sfile)
     Ifile=open(Ifile)
     Rfile=open(Rfile)
     Mfile=open(Mfile)
+    Nfile=open(Nfile)
 
     Xreader=csv.reader(Xfile)
     Yreader=csv.reader(Yfile)
@@ -220,8 +238,9 @@ def sim_from_csv(Xfile,Yfile,Sfile,Ifile,Rfile,Mfile):
     Ireader=csv.reader(Ifile)
     Rreader=csv.reader(Rfile)
     Mreader=csv.reader(Mfile)
+    Nreader=csv.reader(Nfile)
 
-    X,Y,S,I,R,M=[],[],[],[],[],[]
+    X,Y,S,I,R,M,N=[],[],[],[],[],[],[]
     for i in range(6):
         reader=[Xreader,Yreader,Sreader,Ireader,Rreader,Mreader][i]
         L=[X,Y,S,I,R,M][i]
@@ -235,15 +254,17 @@ def sim_from_csv(Xfile,Yfile,Sfile,Ifile,Rfile,Mfile):
     Ifile.close()
     Rfile.close()
     Mfile.close()
+    Nfile.close()
 
-    return X,Y,S,I,R,M
+    return X,Y,S,I,R,M,N
     
 
-P=population(100,20)
-P.contaminer(1)
+P=population(600,30)
+P.contaminer(5)
+P.immuniser(0)
+print(P)
 #animation(methode=sim_from_csv)
-animation(P,400,0,1/60,0.2,1.2,50,1/5,0.001)
+#animation(P,600,0,1/60,0.2,1,80,1/80,0.002)
 #simulation_into_csv(P,200,0.2,1,50,1/2,0.001)
 #input()
-#graph('s.csv','i.csv','r.csv','m.csv')
-breakpoint()
+graph(P,800,0.2,1,120,1/120,0.001)
