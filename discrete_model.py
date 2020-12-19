@@ -18,7 +18,7 @@ class population(object):
         self.y = pop[1] #coordonnées sur y
         self.vx = vx #direction selon x
         self.vy = vy #direction selon y
-        # self.timer = [-1 for i in range(n)] #temps avant guérison (initié à 1)
+        self.compteur = [0 for _ in range(n)]
         self.sains = [i for i in range(n)] #indices des individus sains
         self.exposés = [] #... contaminés mais pas contagieuses (et pas de symptômes)
         self.contagieux = [] #... contagieux mais pas encore de symptômes apparents
@@ -70,37 +70,51 @@ class population(object):
             pool+=[random]
             self.confinés+=[i] #contamination
 
-    def propagation(self,pas,rayon_propagation,σ,Ɛ,γ,λ,α,μ,π): #Propage l'épidémie à l'instant suivant
+    def propagation(self,pas,rayon_propagation,σ,Ɛ,γ,λ,α,μ,π,confinement): #Propage l'épidémie à l'instant suivant
         """Fait se déplacer chaque élément d'un déplacement m et vérifie si deux éléments sont susceptible de se contaminer leur distance relative < e"""
         b=self.r #on récupère la taille de l'espace
         X,Y,vX,vY=self.x,self.y,self.vx,self.vy #et les différentes caractéristiques de la population
-        vivants=self.sains+self.infectés+self.rétablis+self.immunisés
         dS,dE,dC,dRi,dRa,dM=[],[],[],[],[],[],[]
-        for p in vivants: #On fait déplace tous les individus vivants selon leur direction d'une distance unitaire (pas)
+        se_déplacent=self.sains+self.exposés+self.contagieux+self.infectés+self.asymptomatiques+self.rétablis
+        if confinement : 
+            for p in reversed(se_déplacent):
+                if p in self.confinés: se_déplacent.remove(p)
+
+        for p in se_déplacent: #On fait se déplacer tous les individus vivants non-confinés si confinement il y a selon leur direction d'une distance unitaire (pas) et vérifie que les éléments sont toujours dans l'espace d'étude sinon ils "rebondissent"
             X[p]+=pas*vX[p]
             Y[p]+=pas*vY[p]
 
-        for p in vivants: #On vérifie que les éléments sont toujours dans l'espace d'étude sinon ils "rebondissent"
             if X[p] > b :       X[p] , vX[p]  =  b , -vX[p]
             elif X[p] < 0 :     X[p] , vX[p]  =  0 , -vX[p]
             if Y[p] > b :       Y[p] , vY[p]  =  b , -vY[p]
             elif Y[p] < 0 :     Y[p] , vY[p]  =  0 , -vY[p]
 
+
         for p in self.exposés:
-            if rd.random()<Ɛ: dE+=[p]
+            self.compteur[p]+=1
+            if self.compteur[p]>=Ɛ: dE+=[p]
         
         for p in self.contagieux:
-            if rd.random()<γ: dC+=[p]
+            self.compteur[p]+=1
+            if self.compteur[p]>=γ: dC+=[p]
 
-        for p in self.infectés: #Si un élément sain et un autre infecté dont trop proches entre eux, ils ont une probabilité proba_infection de se contaminer
+        for p in self.infectés: #Si un élément sain et un autre infecté dont trop proches l'un de l'autre, ils ont une probabilité proba_infection de se contaminer
+            self.compteur[p]+=1
+            if rd.random()<μ: dM+=[p] #Chaque infecté a une probabilité μ proba_mort de mourrir à chaque instant
+            elif self.compteur[p]>=λ: dRi+=[p] #Chaque infecté a une probabilité λ de guérir à chaque instant
+            elif rd.random()<π: dIso+=[p]
             if p not in self.isolés:
                 for s in self.sains:
-                    if rd.random()<σ and ((X[p]-X[s])**2 +(Y[p]-Y[s])**2)**(1/2)<rayon_propagation: dS+=[s]
-            if rd.random()<λ: dRi+=[p] #Chaque infecté a une probabilité λ de guérir à chaque instant
-            elif rd.random()<μ: dM+=[p] #Chaque infecté a une probabilité μ proba_mort de mourrir à chaque instant
+                    if rd.random()<σ and ((X[p]-X[s])**2 +(Y[p]-Y[s])**2)**(1/2)<rayon_propagation: dS+=[s]            
         
         for p in self.asymptomatiques:
-            if rd.random()<λ: dRa+=[p]
+            self.compteur[p]+=1
+            if self.compteur[p]>=λ: dRa+=[p]
+
+        for p in self.isolés:
+            self.compteur[p]+=1
+            if rd.random()<μ: dM+=[p] #Chaque infecté a une probabilité μ proba_mort de mourrir à chaque instant
+            elif self.compteur[p]>=λ: dRi+=[p] #Chaque infecté a une probabilité λ de guérir à chaque instant
 
         
         for p in reversed(dS):
@@ -115,6 +129,10 @@ class population(object):
             if rd.random()<α: self.asymptomatiques+=[p]
             else: self.infectés+=[p]
             self.contagieux.remove(p)
+        
+        for p in reversed(dIso):
+            self.isolés+=[p]
+            self.infectés.remove(p)
 
         for p in reversed(dRi):
             self.rétablis+=[p]
@@ -123,6 +141,10 @@ class population(object):
         for p in reversed(dRa):
             self.rétablis+=[p]
             self.asymptomatiques.remove(p)
+        
+        for p in reversed(dM):
+            self.morts+=[p]
+            self.infectés.remove(p)
 
 
 
@@ -131,9 +153,11 @@ def copy(objet): return [e for e in objet] #Copie d'une liste
 def simulation(P,duree,pas,rayon_propagation,temps_guerison,proba_infection,prop_guerison,proba_mort):
     """Fait la simulation de la population P sur une certaine duree selon certaines données"""
     X,Y,S,I,R,M,N=[copy(P.x)],[copy(P.y)],[copy(P.sains)],[copy(P.infectés)],[copy(P.rétablis)],[copy(P.morts)],[copy(P.immunisés)] #On copie les données de la population dan des listes qui enregistreront les données de toute la simulation
-    # P.timer=[temps_guerison for i in range(P.n)] #on modifie le timer de guérison en fonction des données de la simulation
+    γ,λ=γ+Ɛ,λ+γ+Ɛ
     for t in range(duree-1):
-        P.propagation(pas,rayon_propagation,proba_infection,prop_guerison,proba_mort) #On passe à l'instant d'après
+        n_infectés,n_vivants=len(P.infectés),P.n-len(P.morts)
+        confinement=n_infectés > prop_inf_conf_deb*n_vivants or (n_infectés > prop_inf_conf_fin*n_vivants and confinement)
+        P.propagation(pas,rayon_propagation,proba_infection,prop_guerison,proba_mort,confinement) #On passe à l'instant d'après
         X+=[copy(P.x)] #On enregistre la position des individus et leur état
         Y+=[copy(P.y)]
         S+=[copy(P.sains)]
@@ -145,7 +169,7 @@ def simulation(P,duree,pas,rayon_propagation,temps_guerison,proba_infection,prop
     return X,Y,S,I,R,M,N
 
 def simulation_into_csv(P,duree,pas,rayon_propagation,temps_guerison,proba_infection,prop_guerison,proba_mort):
-    """Fait la simulation de la population P sur une certaine duree elon certaines données (ne renvoie pas les listes mais les enregidtre dans un fichier csv pour qu'elles soient utilisées plus tard)"""
+    """Fait la simulation de la population P sur une certaine duree selon certaines données (ne renvoie pas les listes mais les enregidtre dans un fichier csv pour qu'elles soient utilisées plus tard)"""
     Xfile=open('x.csv','w')
     Yfile=open('y.csv','w')
     Sfile=open('s.csv','w')
