@@ -18,12 +18,16 @@ class population(object):
         self.y = pop[1] #coordonnées sur y
         self.vx = vx #direction selon x
         self.vy = vy #direction selon y
-        self.timer = [-1 for i in range(n)] #temps avant guérison (initié à 1)
+        # self.timer = [-1 for i in range(n)] #temps avant guérison (initié à 1)
         self.sains = [i for i in range(n)] #indices des individus sains
+        self.exposés = [] #... contaminés mais pas contagieuses (et pas de symptômes)
+        self.contagieux = [] #... contagieux mais pas encore de symptômes apparents
         self.infectés = [] #... infectés
+        self.asymptomatiques = [] #... infectés mais sans symptômes
+        self.isolés = [] #... infectés mais identifiés et isolés
         self.rétablis = [] #... rétablis
         self.morts = [] #... décédés
-        self.immunisés = [] #... immunisés (pas après la maladie mais de façon acquise)
+        self.confinés = [] #... confinés (repectent le confinement).
 
     def __repr__(self): #Représente la position des tous les éléments sur un graphique
         """représente la position de tous les éléments de la population sur un graph"""
@@ -44,57 +48,92 @@ class population(object):
                 i+=1
             self.infectés+=[i]
             self.sains.remove(i)
+            i-=1
 
-    def immuniser(self,n=0): #Immunise les n premiers éléments sains de la population
+    def immuniser(self,n=0):
         """Immunise n éléments dans la population"""
         i=0
         for _ in range(n):
             while not i in self.sains:
                 i+=1
-            self.immunisés+=[i]
+            self.rétablis+=[i]
             self.sains.remove(i)
+            i-=1
 
-    def propagation(self,pas,rayon_propagation,proba_infection,proba_mort): #Propage l'épidémie à l'instant suivant
+    def confiner(self,p):
+        """Définit la partie de la population qui sera confinée et celle qui ne respectera pas le confinement"""
+        pool=[-1] #Initialise la liste des éléments déjà confinés pour pas contaminer deux fois la même personne
+        for i in range(p):
+            random=-1 #un élément déjà dans pool pour entrer dans la boucle while
+            while random in pool: #on vérifie que l'élément choisi n'a pas déjà été confiné
+                random=rd.randint(0,self.n) #élément aléatoire
+            pool+=[random]
+            self.confinés+=[i] #contamination
+
+    def propagation(self,pas,rayon_propagation,σ,Ɛ,γ,λ,α,μ,π): #Propage l'épidémie à l'instant suivant
         """Fait se déplacer chaque élément d'un déplacement m et vérifie si deux éléments sont susceptible de se contaminer leur distance relative < e"""
         b=self.r #on récupère la taille de l'espace
         X,Y,vX,vY=self.x,self.y,self.vx,self.vy #et les différentes caractéristiques de la population
-        for i in range(self.n):
-            if i in self.sains+self.infectés+self.rétablis+self.immunisés: #On fait déplace tous les individus vivants selon leur direction d'une distance unitaire (pas)
-                X[i]+=pas*vX[i]
-                Y[i]+=pas*vY[i]
+        vivants=self.sains+self.infectés+self.rétablis+self.immunisés
+        dS,dE,dC,dRi,dRa,dM=[],[],[],[],[],[],[]
+        for p in vivants: #On fait déplace tous les individus vivants selon leur direction d'une distance unitaire (pas)
+            X[p]+=pas*vX[p]
+            Y[p]+=pas*vY[p]
 
-        for i in range(self.n): #On vérifie que les éléments sont toujours dans l'espace d'étude sinon ils "rebondissent"
-            if X[i] > b :       X[i] , vX[i]  =  b , -vX[i]
-            elif X[i] < 0 :     X[i] , vX[i]  =  0 , -vX[i]
-            if Y[i] > b :       Y[i] , vY[i]  =  b , -vY[i]
-            elif Y[i] < 0 :     Y[i] , vY[i]  =  0 , -vY[i]
+        for p in vivants: #On vérifie que les éléments sont toujours dans l'espace d'étude sinon ils "rebondissent"
+            if X[p] > b :       X[p] , vX[p]  =  b , -vX[p]
+            elif X[p] < 0 :     X[p] , vX[p]  =  0 , -vX[p]
+            if Y[p] > b :       Y[p] , vY[p]  =  b , -vY[p]
+            elif Y[p] < 0 :     Y[p] , vY[p]  =  0 , -vY[p]
 
-        for i in self.infectés: #Si un élément sain et un autre infecté dont trop proches entre eux, ils ont une probabilité proba_infection de se contaminer
-            for j in self.sains:
-                if rd.random()<proba_infection and ((X[i]-X[j])**2 +(Y[i]-Y[j])**2)**(1/2)<rayon_propagation:
-                        self.infectés+=[j]
-                        self.sains.remove(j)
+        for p in self.exposés:
+            if rd.random()<Ɛ: dE+=[p]
+        
+        for p in self.contagieux:
+            if rd.random()<γ: dC+=[p]
 
-        for i in self.infectés:
-            if self.timer[i]==0: #On guérit les individus ayant fini leur période d'infection
-                self.rétablis+=[i]
-                self.infectés.remove(i)
-            elif rd.random()<proba_mort: #Chaque infecté a une probabilité proba_mort de mourrir à chaque instant
-                self.infectés.remove(i)
-                self.morts+=[i]
-            self.timer[i]-=1
+        for p in self.infectés: #Si un élément sain et un autre infecté dont trop proches entre eux, ils ont une probabilité proba_infection de se contaminer
+            if p not in self.isolés:
+                for s in self.sains:
+                    if rd.random()<σ and ((X[p]-X[s])**2 +(Y[p]-Y[s])**2)**(1/2)<rayon_propagation: dS+=[s]
+            if rd.random()<λ: dRi+=[p] #Chaque infecté a une probabilité λ de guérir à chaque instant
+            elif rd.random()<μ: dM+=[p] #Chaque infecté a une probabilité μ proba_mort de mourrir à chaque instant
+        
+        for p in self.asymptomatiques:
+            if rd.random()<λ: dRa+=[p]
 
-        self.x,self.y=X,Y
+        
+        for p in reversed(dS):
+            self.exposés+=[p]
+            self.sains.remove(p)
+
+        for p in reversed(dE):
+            self.contagieux+=[p]
+            self.exposés.remove(p)
+
+        for p in reversed(dC):
+            if rd.random()<α: self.asymptomatiques+=[p]
+            else: self.infectés+=[p]
+            self.contagieux.remove(p)
+
+        for p in reversed(dRi):
+            self.rétablis+=[p]
+            self.infectés.remove(p)
+
+        for p in reversed(dRa):
+            self.rétablis+=[p]
+            self.asymptomatiques.remove(p)
+
 
 
 def copy(objet): return [e for e in objet] #Copie d'une liste
 
-def simulation(P,duree,pas,rayon_propagation,temps_guerison,proba_infection,proba_mort):
+def simulation(P,duree,pas,rayon_propagation,temps_guerison,proba_infection,prop_guerison,proba_mort):
     """Fait la simulation de la population P sur une certaine duree selon certaines données"""
     X,Y,S,I,R,M,N=[copy(P.x)],[copy(P.y)],[copy(P.sains)],[copy(P.infectés)],[copy(P.rétablis)],[copy(P.morts)],[copy(P.immunisés)] #On copie les données de la population dan des listes qui enregistreront les données de toute la simulation
-    P.timer=[temps_guerison for i in range(P.n)] #on modifie le timer de guérison en fonction des données de la simulation
+    # P.timer=[temps_guerison for i in range(P.n)] #on modifie le timer de guérison en fonction des données de la simulation
     for t in range(duree-1):
-        P.propagation(pas,rayon_propagation,proba_infection,proba_mort) #On passe à l'instant d'après
+        P.propagation(pas,rayon_propagation,proba_infection,prop_guerison,proba_mort) #On passe à l'instant d'après
         X+=[copy(P.x)] #On enregistre la position des individus et leur état
         Y+=[copy(P.y)]
         S+=[copy(P.sains)]
@@ -105,7 +144,7 @@ def simulation(P,duree,pas,rayon_propagation,temps_guerison,proba_infection,prob
         print(str(100*(t+1)/duree)+"%")
     return X,Y,S,I,R,M,N
 
-def simulation_into_csv(P,duree,pas,rayon_propagation,temps_guerison,proba_infection,proba_mort):
+def simulation_into_csv(P,duree,pas,rayon_propagation,temps_guerison,proba_infection,prop_guerison,proba_mort):
     """Fait la simulation de la population P sur une certaine duree elon certaines données (ne renvoie pas les listes mais les enregidtre dans un fichier csv pour qu'elles soient utilisées plus tard)"""
     Xfile=open('x.csv','w')
     Yfile=open('y.csv','w')
@@ -131,7 +170,7 @@ def simulation_into_csv(P,duree,pas,rayon_propagation,temps_guerison,proba_infec
         Rwriter.writerow(P.rétablis)
         Mwriter.writerow(P.morts)
         Nwriter.writerow(P.immunisés)
-        P.propagation(pas,rayon_propagation,proba_infection,proba_mort)
+        P.propagation(pas,rayon_propagation,proba_infection,prop_guerison,proba_mort)
         print(str(100*(t+1)/duree)+"%")
 
     Xfile.close()
@@ -143,10 +182,10 @@ def simulation_into_csv(P,duree,pas,rayon_propagation,temps_guerison,proba_infec
     Nfile.close()
 
 
-def animation(P=population(0,0),frames=0,taille=0,frequence=1/60,pas=0.1,rayon_propagation=1,temps_guerison=-1,proba_infection=1,proba_mort=0,methode=simulation,Xfile='x.csv',Yfile='y.csv',Sfile='s.csv',Ifile='i.csv',Rfile='r.csv',Mfile='m.csv',Nfile='n.csv'):
+def animation(P=population(0,0),frames=0,taille=0,frequence=1/60,pas=0.1,rayon_propagation=1,temps_guerison=-1,proba_infection=1,prop_guerison=0,proba_mort=0,methode=simulation,Xfile='x.csv',Yfile='y.csv',Sfile='s.csv',Ifile='i.csv',Rfile='r.csv',Mfile='m.csv',Nfile='n.csv'):
     """Affiche une animation à partir d'une nouvelle simulation grâce aux arguments de la fonction, ou à partir de fichiers csv"""
     if methode==simulation:
-        X,Y,S,I,R,M,N=methode(P,frames,pas,rayon_propagation,temps_guerison,proba_infection,proba_mort)
+        X,Y,S,I,R,M,N=methode(P,frames,pas,rayon_propagation,temps_guerison,proba_infection,prop_guerison,proba_mort)
         if taille==0: taille=P.r
     else:
         X,Y,S,I,R,M,N=methode(Xfile,Yfile,Sfile,Ifile,Rfile,Mfile,Nfile)
@@ -210,11 +249,11 @@ def animation(P=population(0,0),frames=0,taille=0,frequence=1/60,pas=0.1,rayon_p
         #On peut retirer les lignes du dessus des commentaires pour enregistrer chaque image de l'animation
     plt.show()
 
-def graph(P=population(0,0),duree=0,pas=0.1,rayon_propagation=1,temps_guerison=-1,proba_infection=1,proba_mort=0,methode=simulation,Xfile='x.csv',Yfile='y.csv',Sfile='s.csv',Ifile='i.csv',Rfile='r.csv',Mfile='m.csv',Nfile='n.csv'):
+def graph(P=population(0,0),duree=0,pas=0.1,rayon_propagation=1,temps_guerison=-1,proba_infection=1,prop_guerison=0,proba_mort=0,methode=simulation,Xfile='x.csv',Yfile='y.csv',Sfile='s.csv',Ifile='i.csv',Rfile='r.csv',Mfile='m.csv',Nfile='n.csv'):
     """Affiche la courbe des différents états des individus en fonction du temps"""
     #Le code est similaire à celui pour le graph de gauche de l'animation
     if methode==simulation:
-        _,_,S,I,R,M,_=methode(P,duree,pas,rayon_propagation,temps_guerison,proba_infection,proba_mort)
+        _,_,S,I,R,M,_=methode(P,duree,pas,rayon_propagation,temps_guerison,proba_infection,prop_guerison,proba_mort)
     else:
         _,_,S,I,R,M,_=methode(Xfile,Yfile,Sfile,Ifile,Rfile,Mfile,Nfile)
         if duree==0: frames=len(S)
@@ -270,11 +309,16 @@ def sim_from_csv(Xfile,Yfile,Sfile,Ifile,Rfile,Mfile,Nfile):
     return X,Y,S,I,R,M,N
 
 
-P=population(500,30)
-P.contaminer(5)
-#P.immuniser(1)
-#animation(methode=sim_from_csv)
-animation(P,600,0,1/60,0.2,1,80,1/80,0.001)
-#simulation_into_csv(P,200,0.2,1,50,1/2,0.001)
+# P=population(500,30)
+# P.contaminer(5)
+# P.immuniser(1)
+# animation(methode=sim_from_csv)
+# animation(P,600,0,1/60,0.2,1,80,1/80,0.001)
+# simulation_into_csv(P,200,0.2,1,50,1/2,0.001)
 #input()
 #graph(P,600,0.2,1,80,1/80,0.001)
+
+P=population(32,8)
+P.contaminer(32)
+animation(P,200,0,1/60,0.2,1,12,1/2,0.001,methode=simulation)
+breakpoint()
