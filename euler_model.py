@@ -1,28 +1,32 @@
-#Pas encore commenté !!
 """Modèle Mathématique"""
 
 import matplotlib.pyplot as plt
 
 class population(object):
     def __init__(self,n=100,infectés=1,immunisés=0):
-        self.n = n #nombre d'individus
+        """Crée une population de n individus"""
+        self.n = n #Nombre d'individus...
         self.sains = n-immunisés-infectés #... sains
-        self.exposés = 0 #... contaminés mais pas contagieuses
+        self.exposés = 0 #... contaminés mais pas contagieux (et sans symptômes)
         self.contagieux = 0 #... contagieux mais pas encore de symptômes apparents
         self.infectés = infectés #... infectés
         self.asymptomatiques = 0 #... infectés mais sans symptôme
-        self.enQuarantaine = 0
+        self.enQuarantaine = 0 #infectés mais indentifié et isolé
         self.rétablis = immunisés #... rétablis ou déjà immunisés sans y avoir été exposés
         self.morts = 0 #... décédés
 
+
     def propagation_SIR(self,β,γ):
+        """Propage le virus à l'instant selon le modèle SIR"""
         dS=int(self.sains*β*self.infectés)
         dI=int(self.infectés*γ)
         self.sains += -dS
         self.infectés += dS-dI
         self.rétablis += dI
 
+
     def propagation_SEIR(self,σ,Ɛ,λ,μ):
+        """Propage le virus à l'instant selon le modèle SEIR"""
         n=self.n
         dS=σ/n*self.sains*self.infectés
         dE=Ɛ*self.exposés
@@ -34,7 +38,9 @@ class population(object):
         self.rétablis += dR
         self.morts += dM
 
+
     def propagation_complete(self,dt,σ,Ɛ,γ,λ,α,μ,χ=0):
+        """Propage le virus à l'instant selon le modèle complet"""
         n=self.n
         dS=σ/n*self.sains*(self.infectés+self.contagieux+self.asymptomatiques)*dt
         dE=Ɛ*self.exposés*dt
@@ -55,31 +61,35 @@ class population(object):
         self.morts += dMi+dMq
 
 
-"""Simulations"""
 
+
+"""Simulations"""
 def simulation_SIR(P,duree,dt,β,γ):
-    S,I,R=[P.sains],[P.infectés],[P.rétablis] #On copie les données de la population dan des listes qui enregistreront les données de toute la simulation
+    """Fait la simulation de l'épidémie avec P selon le modèle SIR"""
+    S,I,R=[P.sains],[P.infectés],[P.rétablis]
     for _ in range(int(duree/dt)-1):
-        P.propagation_SIR(β,γ) #On passe à l'instant d'après
+        P.propagation_SIR(β,γ)
         S+=[P.sains]
         I+=[P.infectés]
         R+=[P.rétablis]
-        # print(str(100*(t+1)/duree)+"%")
     return [S,I,R]
 
+
 def simulation_SEIR(P,duree,dt,σ,Ɛ,λ,μ):
-    S,E,I,R=[P.sains],[P.exposés],[P.infectés],[P.rétablis] #On copie les données de la population dan des listes qui enregistreront les données de toute la simulation
+    """Fait la simulation de l'épidémie avec P selon avec le modèle SEIR"""
+    S,E,I,R=[P.sains],[P.exposés],[P.infectés],[P.rétablis]
     for _ in range(int(duree/dt)-1):
-        P.propagation_SEIR(σ,Ɛ,λ,μ) #On passe à l'instant d'après
+        P.propagation_SEIR(σ,Ɛ,λ,μ)
         S+=[P.sains]
         E+=[P.exposés]
         I+=[P.infectés]
         R+=[P.rétablis]
-        # print(str(100*(t+1)/duree)+"%")
     return [S,E,I,R]
 
+
 def simulation_complete(P,duree,dt,σ,Ɛ,γ,λ,α,μ,χ,SDC=1,PPC=0,SFC=1):
-    S,E,C,I,A,Q,R,M=[P.sains],[P.exposés],[P.contagieux],[P.infectés],[P.asymptomatiques],[P.enQuarantaine],[P.rétablis],[P.morts] #On copie les données de la population dans des listes qui enregistreront les données de toute la simulation
+    """Fait la simulation de l'épidémie avec P selon avec le modèle complet"""
+    S,E,C,I,A,Q,R,M=[P.sains],[P.exposés],[P.contagieux],[P.infectés],[P.asymptomatiques],[P.enQuarantaine],[P.rétablis],[P.morts]
     conf=False
     temps=[t for t in range(1,int(duree/dt))]
     for _ in temps:
@@ -89,7 +99,7 @@ def simulation_complete(P,duree,dt,σ,Ɛ,γ,λ,α,μ,χ,SDC=1,PPC=0,SFC=1):
             conf=True
         else:
             P.propagation_complete(dt,σ,Ɛ,γ,λ,α,μ,χ)
-            conf=False #On passe à l'instant d'après
+            conf=False 
         S+=[P.sains]
         E+=[P.exposés]
         C+=[P.contagieux]
@@ -98,10 +108,14 @@ def simulation_complete(P,duree,dt,σ,Ɛ,γ,λ,α,μ,χ,SDC=1,PPC=0,SFC=1):
         Q+=[P.enQuarantaine]
         R+=[P.rétablis]
         M+=[P.morts]
-        # print(str(100*(t+1)/duree)+"%")
     return [S,E,C,I,A,Q,R,M]
 
+
+
+
+"""Graphique"""
 def graphique_complet(simulation,mod,dt):
+    """Affiche l'évolution de l'épidémie en fonction du temps"""
     if mod=="SIR": S,I,R=simulation
     elif mod=="SEIR": S,E,I,R=simulation
     elif mod=="SEIR+": S,E,C,I,A,Q,R,M=simulation
@@ -132,15 +146,7 @@ def graphique_complet(simulation,mod,dt):
 
 
 
-P=population(1000,infectés=3)
-S=simulation_complete(P,120,1/10,3/8,1/3,1/2,1/8,0.25,0.02/8,1/3)
-graphique_complet(S,"SEIR+",1/10)
-
-
-
-
-"""
-Reste à faire:
-- Réorganiser le code
-- Faire courbe réelle vs officielle
-"""
+"""Exemple d'utilisation du code"""
+# P=population(1000,infectés=5)
+# S=simulation_complete(P,150,1/10,3/8,1/3,1/2,1/8,0.25,0.02/8)
+# graphique_complet(S,"SEIR+",1/10)

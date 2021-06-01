@@ -295,7 +295,6 @@ def graphiqueLight(sim,dt):
     plt.plot(temps,R,color="blue",label="Rétablis")
     plt.plot(temps,M,color="#303030",label="Morts")
     S,E,C,I,Q,A,R,M=[],[],[],[],[],[],[],[]
-    # plt.ylim(0,sum([len(simulation[i][0]) for i in range(2,10)]))
 
     plt.title("Évolution de l'épidémie dans le temps")
     plt.xlabel('Temps (en jours)')
@@ -309,22 +308,26 @@ def multiGraphiqueDepuisCsv(indiceDébut,indiceFin,dt):
     """Trace le graphique d'une' moyenne sur plusieurs simulations."""
     lettres=['x','y','s','e','c','i','q','a','r','m']
     moyenneSimulations=[]
+    #On récupère la première simulation
     simulation=simulationDepuisCsv([l+str(indiceDébut)+'.csv' for l in lettres])
     moyenneSimulations+=[[[len(L) for L in simulation[i]] for i in range(2,10)]]
     duree=len(moyenneSimulations[0])
     temps=[t for t in range(duree)]
     N=indiceFin-indiceDébut
     for indice in range(indiceDébut+1,indiceFin):
+        #On fait la somme du nombre de personnes dans chaque état pour chaque simulation ...
         simulation=simulationDepuisCsv([l+str(indice)+'.csv' for l in lettres])
         simulation=[[len(L) for L in simulation[i]] for i in range(2,10)]
         for i in range(len(moyenneSimulations)):
             for t in temps:
                 moyenneSimulations[i][t]+=simulation[i][t]
         print(str(100*indice/N)+'%')
+    #... pour en faire la moyenne
     for categorie in moyenneSimulations:
         for t in temps:
             categorie[t]/=N
-    graphiqueLight([_,_]+moyenneSimulations,dt)
+    #Tracé du graphique
+    graphiqueLight([None,None]+moyenneSimulations,dt)
 
 
 #Animation
@@ -410,3 +413,13 @@ def animer(simulation,taille=0,frequence=1/60,dt=1):
 def densité(n,dim,r): return (pi*r**2*n)/dim**2
 
 def dim(n,r,densité): return sqrt(pi*r**2*n/densité)
+
+
+
+
+"""Exemple d'utilisation du programme"""
+# r=dim(1000,1,1) #r=56
+# P=population(1000,r)
+# P.infecter(5)
+# S=simulation(P,150,1/10,5,1,3/8,1/3,1/2,1/8,0.25,0.02/8)
+# animer(S,56,1/120,1/10)
