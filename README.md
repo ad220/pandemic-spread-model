@@ -8,14 +8,14 @@ More information available in the [docs](docs/) folder where the exam deliverabl
 ### Discrete Model
 The "discrete" model is people represented by moving dots in a square. They bounce off the edges and can transmit the virus one to each other if they get too close.
 
-> Screenshot of the moving dots animation and population state graph.
+#### Screenshot of the moving dots animation and population state graph.
 ![](plots/discrete.png)
 
 
 ### Differential equation model
 The mathematical problem reprents the problem with non-linear differential equation system which is solved with Euler method. It is deeply described in the [report](docs/report.pdf) file.
 
-> Comparison of the discrete model on the left and the mathematical one on the right with "similar" parameters.
+#### Comparison of the discrete model on the left and the mathematical one on the right with "similar" parameters.
 ![](plots/comp_math.png)
 
 
