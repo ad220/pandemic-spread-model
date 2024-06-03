@@ -169,7 +169,7 @@ def copy(objet): return [e for e in objet] #Copie d'une liste
 
 def simulation(P,duree,dt,pas,r,σ,Ɛ,γ,λ,α=0,μ=0,χ=0,SDC=1,SFC=1):
     """Fait la simulation de la population P sur une certaine duree selon certaines paramètres."""
-    attributs=[P.x,P.y,P.sains,P.exposés,P.contagieux,P.infectés,P.enQuarantaine,P.asymptotiques,P.rétablis,P.morts]
+    attributs=[P.x,P.y,P.sains,P.exposés,P.contagieux,P.infectés,P.enQuarantaine,P.asymptomatiques,P.rétablis,P.morts]
     X,Y,S,E,C,I,Q,A,R,M=[[copy(a)] for a in attributs] #On copie les données de la population dans des listes pour toute la simulation
     confinement=False
     for t in [dt*t for t in range(ceil(duree/dt))]:
