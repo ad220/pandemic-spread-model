@@ -167,11 +167,12 @@ nomsParDéfaut=['x.csv','y.csv','s.csv','e.csv','c.csv','i.csv','q.csv','a.csv',
 def copy(objet): return [e for e in objet] #Copie d'une liste
 
 
-def simulation(P,duree,dt,pas,r,σ,Ɛ,γ,λ,α=0,μ=0,χ=0,SDC=1,SFC=1):
+def simulation(P,duree,dt,pas,r,σ,Ɛ,γ,λ,α=0,μ=0,χ=0,SDC=1,SFC=1,log=True):
     """Fait la simulation de la population P sur une certaine duree selon certaines paramètres."""
     attributs=[P.x,P.y,P.sains,P.exposés,P.contagieux,P.infectés,P.enQuarantaine,P.asymptomatiques,P.rétablis,P.morts]
     X,Y,S,E,C,I,Q,A,R,M=[[copy(a)] for a in attributs] #On copie les données de la population dans des listes pour toute la simulation
     confinement=False
+    print("Début simulation")
     for t in [dt*t for t in range(ceil(duree/dt))]:
         nInfectés,nVivants=len(P.infectés),P.n-len(P.morts)
         confinement=nInfectés > SDC*nVivants or (nInfectés > SFC*nVivants and confinement)
@@ -188,8 +189,8 @@ def simulation(P,duree,dt,pas,r,σ,Ɛ,γ,λ,α=0,μ=0,χ=0,SDC=1,SFC=1):
         A+=[copy(P.asymptomatiques)]
         R+=[copy(P.rétablis)]
         M+=[copy(P.morts)]
-        print(str(100*(t+dt)/duree)+"%")
-
+        if log: print(str(100*(t+dt)/duree)+"%")
+    print("Simulation terminée")
     return X,Y,S,E,C,I,Q,A,R,M #Résultats de la simulation
 
 
