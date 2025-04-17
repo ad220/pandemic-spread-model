@@ -91,8 +91,7 @@ def simulation_complete(P,duree,dt,σ,Ɛ,γ,λ,α,μ,χ,SDC=1,PPC=0,SFC=1):
     """Fait la simulation de l'épidémie avec P selon avec le modèle complet"""
     S,E,C,I,A,Q,R,M=[P.sains],[P.exposés],[P.contagieux],[P.infectés],[P.asymptomatiques],[P.enQuarantaine],[P.rétablis],[P.morts]
     conf=False
-    temps=[t for t in range(1,int(duree/dt))]
-    for _ in temps:
+    for _ in range(int(duree/dt)):
         vivants=P.n-P.morts
         if P.infectés+P.enQuarantaine > SDC*vivants or (P.infectés+P.enQuarantaine > SFC*vivants and conf):
             P.propagation_complete(dt,σ*(1-PPC)**2,Ɛ,γ,λ,α,μ,χ)
